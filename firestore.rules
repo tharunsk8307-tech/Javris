@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Catch-all Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'securityClearance', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'securityClearance', 'createdAt', 'lastLogin', 'preferredCallsign', 'preferredVoiceId', 'hudTheme', 'customAccentColor']) &&
+        data.uid is string && data.uid.size() <= 128 &&
+        data.email is string && data.email.size() <= 128 &&
+        data.securityClearance in ['GUEST', 'OPERATOR', 'THARUN_CLEARANCE_LVL_7', 'STARK_CLEARANCE_LVL_7', 'EXECUTIVE_CLEARANCE_LVL_7'] &&
+        data.createdAt is string && data.createdAt.size() <= 50 &&
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500)) &&
+        (!('lastLogin' in data) || (data.lastLogin is string && data.lastLogin.size() <= 50)) &&
+        (!('preferredCallsign' in data) || (data.preferredCallsign is string && data.preferredCallsign.size() <= 50)) &&
+        (!('preferredVoiceId' in data) || (data.preferredVoiceId is string && data.preferredVoiceId.size() <= 50)) &&
+        (!('hudTheme' in data) || (data.hudTheme in ['cyan', 'emerald', 'amber', 'rose', 'purple'])) &&
+        (!('customAccentColor' in data) || (data.customAccentColor is string && data.customAccentColor.size() <= 30));
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['userId', 'sessionStartedAt']) &&
+        data.keys().hasOnly(['userId', 'sessionStartedAt', 'lastActiveAt', 'userAgent']) &&
+        data.userId is string && data.userId.size() <= 128 &&
+        data.sessionStartedAt is string && data.sessionStartedAt.size() <= 50 &&
+        (!('lastActiveAt' in data) || (data.lastActiveAt is string && data.lastActiveAt.size() <= 50)) &&
+        (!('userAgent' in data) || (data.userAgent is string && data.userAgent.size() <= 200));
+    }
+
+    // User Profile: Strict owner access with data validation
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // Blanket user listing forbidden for security
+      allow create: if isOwner(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == userId &&
+        incoming().securityClearance in ['GUEST', 'OPERATOR']; // Block privilege escalation
+      allow update: if isOwner(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'lastLogin', 'preferredCallsign', 'preferredVoiceId', 'hudTheme', 'customAccentColor']);
+      allow delete: if isOwner(userId);
+
+      // User Session audit logs
+      match /sessions/{sessionId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+          isValidSession(incoming()) &&
+          incoming().userId == userId;
+        allow update: if isOwner(userId) &&
+          isValidSession(incoming()) &&
+          incoming().userId == existing().userId &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['lastActiveAt']);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "JARVIS Voice AI Assistant",
+  "description": "Executive-grade voice artificial intelligence system with real-time speech synthesis, computer vision 3D spatial scanning, Google Workspace Gmail automation, global telemetry, and autonomous intelligence.",
+  "requestFramePermissions": ["microphone", "geolocation", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

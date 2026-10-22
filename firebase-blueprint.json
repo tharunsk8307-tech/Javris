@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Secure user account record stored in database with individual AI Voice Persona & Voice Page settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "photoURL": { "type": "string", "maxLength": 500 },
+        "securityClearance": { "type": "string", "enum": ["GUEST", "OPERATOR", "THARUN_CLEARANCE_LVL_7", "STARK_CLEARANCE_LVL_7", "EXECUTIVE_CLEARANCE_LVL_7"] },
+        "createdAt": { "type": "string", "maxLength": 50 },
+        "lastLogin": { "type": "string", "maxLength": 50 },
+        "preferredCallsign": { "type": "string", "maxLength": 50 },
+        "preferredVoiceId": { "type": "string", "maxLength": 50 },
+        "hudTheme": { "type": "string", "enum": ["cyan", "emerald", "amber", "rose", "purple"] },
+        "customAccentColor": { "type": "string", "maxLength": 30 }
+      },
+      "required": ["uid", "email", "securityClearance", "createdAt"]
+    },
+    "UserSessionLog": {
+      "title": "UserSessionLog",
+      "description": "Private audit and directive log for each authenticated operative",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "sessionStartedAt": { "type": "string", "maxLength": 50 },
+        "lastActiveAt": { "type": "string", "maxLength": 50 },
+        "userAgent": { "type": "string", "maxLength": 200 }
+      },
+      "required": ["userId", "sessionStartedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Secure user profile documents accessible strictly by the verified owner"
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/UserSessionLog" },
+      "description": "User security session logs owned and accessible strictly by that user"
+    }
+  }
+}
